@@ -36,6 +36,10 @@
   .btn-unlock:active{transform:scale(.98)}
   .btn-unlock:disabled{opacity:.5;cursor:not-allowed}
   .error-msg{background:rgba(255,95,87,.1);border:1px solid rgba(255,95,87,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red);margin-top:14px;display:none}
+  .mode-tabs{display:flex;gap:6px;margin-bottom:24px;background:var(--bg3);padding:4px;border-radius:10px}
+  .mode-tab{flex:1;background:none;border:none;color:var(--text2);font-size:13px;font-weight:500;padding:9px;border-radius:7px;cursor:pointer;font-family:var(--sans);transition:all .2s}
+  .mode-tab:hover{color:var(--text)}
+  .mode-tab.active{background:var(--accent);color:#fff}
   #sidebar{width:240px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
   .sidebar-header{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
   .sidebar-header span{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.08em}
@@ -158,21 +162,49 @@
 
 <div id="unlock-screen">
   <div class="unlock-card">
-    <h2>開啟密碼庫</h2>
-    <p>選擇你的 .kdbx 檔案並輸入主密碼。所有解密均在瀏覽器本地完成，密碼不會離開你的裝置。</p>
-    <div class="drop-zone" id="drop-zone">
-      <input type="file" id="file-input" accept=".kdbx">
-      <div class="icon">📁</div>
-      <p>拖放 .kdbx 檔案或點擊選擇</p>
-      <div class="filename" id="filename-display"></div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tab-open" onclick="switchMode('open')">開啟現有</button>
+      <button class="mode-tab" id="tab-create" onclick="switchMode('create')">建立新密碼庫</button>
     </div>
-    <div class="field-label">主密碼</div>
-    <div class="field-row">
-      <input type="password" id="master-pw" placeholder="輸入主密碼..." autocomplete="off">
-      <button class="toggle-pw" onclick="togglePw()">👁</button>
+
+    <div id="open-view">
+      <h2>開啟密碼庫</h2>
+      <p>選擇你的 .kdbx 檔案並輸入主密碼。所有解密均在瀏覽器本地完成，密碼不會離開你的裝置。</p>
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".kdbx">
+        <div class="icon">📁</div>
+        <p>拖放 .kdbx 檔案或點擊選擇</p>
+        <div class="filename" id="filename-display"></div>
+      </div>
+      <div class="field-label">主密碼</div>
+      <div class="field-row">
+        <input type="password" id="master-pw" placeholder="輸入主密碼..." autocomplete="off">
+        <button class="toggle-pw" onclick="togglePw()">👁</button>
+      </div>
+      <button class="btn-unlock" id="unlock-btn" onclick="unlockDB()">解鎖密碼庫</button>
+      <div class="error-msg" id="error-msg"></div>
     </div>
-    <button class="btn-unlock" id="unlock-btn" onclick="unlockDB()">解鎖密碼庫</button>
-    <div class="error-msg" id="error-msg"></div>
+
+    <div id="create-view" class="hidden">
+      <h2>建立新密碼庫</h2>
+      <p>在本地建立一個全新的 .kdbx 檔案。建立後可新增帳號並下載存檔，全程不上傳。採用 AES-KDF 加密，與 KeePass / KeePassXC 相容。</p>
+      <div class="field-label">資料庫名稱</div>
+      <div class="field-row">
+        <input type="text" id="new-db-name" placeholder="例：公司密碼庫" autocomplete="off">
+      </div>
+      <div class="field-label">主密碼</div>
+      <div class="field-row">
+        <input type="password" id="new-pw" placeholder="設定主密碼..." autocomplete="new-password">
+        <button class="toggle-pw" onclick="toggleNewPw()">👁</button>
+      </div>
+      <div class="pw-strength" id="new-pw-strength" style="margin-bottom:16px"></div>
+      <div class="field-label">確認主密碼</div>
+      <div class="field-row">
+        <input type="password" id="new-pw2" placeholder="再次輸入主密碼..." autocomplete="new-password">
+      </div>
+      <button class="btn-unlock" id="create-btn" onclick="createDB()">建立密碼庫</button>
+      <div class="error-msg" id="create-error"></div>
+    </div>
   </div>
 </div>
 
@@ -431,6 +463,83 @@ async function unlockDB(){
 
 function showError(msg){var el=document.getElementById("error-msg");el.textContent=msg;el.style.display="block"}
 
+// ===== NEW: Create new database =====
+
+var _newDbName="";
+
+function switchMode(mode){
+  var openV=document.getElementById("open-view");
+  var createV=document.getElementById("create-view");
+  var tOpen=document.getElementById("tab-open");
+  var tCreate=document.getElementById("tab-create");
+  document.getElementById("error-msg").style.display="none";
+  document.getElementById("create-error").style.display="none";
+  if(mode==="create"){
+    openV.classList.add("hidden");createV.classList.remove("hidden");
+    tOpen.classList.remove("active");tCreate.classList.add("active");
+    setTimeout(function(){document.getElementById("new-db-name").focus()},50);
+  }else{
+    createV.classList.add("hidden");openV.classList.remove("hidden");
+    tCreate.classList.remove("active");tOpen.classList.add("active");
+  }
+}
+
+function toggleNewPw(){var i=document.getElementById("new-pw");i.type=i.type==="password"?"text":"password"}
+
+function showCreateError(msg){var el=document.getElementById("create-error");el.textContent=msg;el.style.display="block"}
+
+function updateStrengthBar(pw,barId){
+  var bar=document.getElementById(barId);
+  if(!pw){bar.style.background="";bar.style.width="0";return}
+  var score=0;
+  if(pw.length>=8)score++;
+  if(pw.length>=14)score++;
+  if(/[A-Z]/.test(pw))score++;
+  if(/[0-9]/.test(pw))score++;
+  if(/[^A-Za-z0-9]/.test(pw))score++;
+  var colors=["","#ff5f57","#f5a623","#3dd68c","#3dd68c"];
+  var widths=["0","25%","50%","75%","100%"];
+  bar.style.background=colors[score]||"";
+  bar.style.width=widths[score]||"0";
+}
+
+document.getElementById("new-pw").addEventListener("input",function(){updateStrengthBar(this.value,"new-pw-strength")});
+document.getElementById("new-pw2").addEventListener("keydown",function(e){if(e.key==="Enter")createDB()});
+
+async function createDB(){
+  var name=document.getElementById("new-db-name").value.trim();
+  var pw=document.getElementById("new-pw").value;
+  var pw2=document.getElementById("new-pw2").value;
+  var btn=document.getElementById("create-btn");
+  document.getElementById("create-error").style.display="none";
+  if(!pw){showCreateError("請輸入主密碼");return}
+  if(pw.length<4){showCreateError("主密碼太短，請至少 4 個字元");return}
+  if(pw!==pw2){showCreateError("兩次輸入的主密碼不一致");return}
+  btn.disabled=true;
+  btn.innerHTML='<span class="loading"></span>建立中...';
+  try{
+    var credentials=new kdbxweb.Credentials(kdbxweb.ProtectedValue.fromString(pw));
+    db=kdbxweb.Kdbx.create(credentials,name||"密碼庫");
+    // 本頁未內建 Argon2，改用 AES-KDF（預設 30 萬輪）以確保可儲存且相容 KeePass
+    db.setKdf(kdbxweb.Consts.KdfId.Aes);
+    _newDbName=name||"密碼庫";
+    selectedFile=null;
+    allEntries=[];
+    collectEntries(db.getDefaultGroup(),[]);
+    document.getElementById("unlock-screen").classList.add("hidden");
+    document.getElementById("main-app").classList.remove("hidden");
+    buildGroupTree();
+    selectGroup(null,"所有帳號");
+    markUnsaved(); // 全新資料庫尚未存檔
+    showToast("✅ 已建立密碼庫，新增帳號後請點 💾 儲存下載 .kdbx");
+  }catch(e){
+    console.error(e);
+    showCreateError("建立失敗："+(e&&e.message?e.message:e));
+    btn.disabled=false;
+    btn.innerHTML="建立密碼庫";
+  }
+}
+
 function collectEntries(group,path){
   var p=[...path,group.name];
   for(var e of group.entries)allEntries.push({entry:e,group:group.name,groupObj:group,path:p});
@@ -604,8 +713,15 @@ function escHtml(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").
 function escQ(s){return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,'\\"')}
 
 function lockDB(){
-  db=null;allEntries=[];currentGroupEntries=[];selectedFile=null;_hasUnsavedChanges=false;_currentGroup=null;
+  db=null;allEntries=[];currentGroupEntries=[];selectedFile=null;_hasUnsavedChanges=false;_currentGroup=null;_newDbName="";
   document.getElementById("master-pw").value="";
+  document.getElementById("new-db-name").value="";
+  document.getElementById("new-pw").value="";
+  document.getElementById("new-pw2").value="";
+  document.getElementById("new-pw-strength").style.background="";
+  document.getElementById("new-pw-strength").style.width="0";
+  document.getElementById("create-error").style.display="none";
+  switchMode("open");
   document.getElementById("filename-display").textContent="";
   document.getElementById("error-msg").style.display="none";
   document.getElementById("unlock-btn").disabled=false;
@@ -811,7 +927,7 @@ async function saveDB(){
     var blob=new Blob([buf],{type:"application/octet-stream"});
     var url=URL.createObjectURL(blob);
     var a=document.createElement("a");
-    var fname=selectedFile?selectedFile.name:"passwords.kdbx";
+    var fname=selectedFile?selectedFile.name:((_newDbName?_newDbName.replace(/[\\/:*?"<>|]/g,"_"):"passwords")+".kdbx");
     a.href=url;
     a.download=fname;
     document.body.appendChild(a);
